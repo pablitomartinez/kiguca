@@ -4,6 +4,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils/format";
 import { TrendingUp, DollarSign, Clock, Target } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const DashboardCharts = dynamic(
+  () => import("../components/dashboard/DashboardCharts"),
+  { ssr: false }
+);
 
 export default function Page() {
   return (
@@ -68,6 +74,7 @@ export default function Page() {
       </Card>
 
       {/* Gráfico placeholder */}
+{/*       
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -82,8 +89,8 @@ export default function Page() {
             </p>
           </div>
         </CardContent>
-      </Card>
-
+      </Card> */}
+      <DashboardCharts />
       {/* Acceso rápido */}
       <div className="text-center space-y-4">
         <h3 className="text-lg font-medium">Comenzar Registrando</h3>

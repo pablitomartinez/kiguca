@@ -137,12 +137,12 @@ export default function ObjetivoPage() {
       } else {
         // ⬇️ AQUI agregamos los campos que faltan para "create"
         const payloadCreate: Omit<
-          ObjetivoType,
+          Objetivo,
           "id" | "created_at" | "updated_at"
         > = {
           ...payload,
           nombre: "Meta activa", // valor por defecto
-          estado: "activa", // usa el valor válido según tu union
+          estado: "activo", // usa el valor válido según tu union
         };
         await storage.objetivos.create(payloadCreate);
         toast.success("Objetivo creado");
