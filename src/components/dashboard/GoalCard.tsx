@@ -1,0 +1,123 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { getIngresosWithinObjetivo } from "../../lib/analitycs/ingresos";
+import { formatCurrency } from "@/lib/utils/format";
+
+export default function GoalCard() {
+  const [loading, setLoading] = useState(true);
+  const [goal, setGoal] = useState<number>(0);
+  const [period, setPeriod] = useState<{ start?: string; end?: string }>();
+  const [total, setTotal] = useState<number>(0);
+  const [hasGoal, setHasGoal] = useState(false);
+
+  useEffect(() => {
+    const run = async () => {
+      const { objetivo, ingresos } = await getIngresosWithinObjetivo();
+      setHasGoal(Boolean(objetivo));
+      if (!objetivo) {
+        setLoading(false);
+        return;
+      }
+      setGoal(Number((objetivo as any).monto ?? 0));
+      setPeriod({ start: objetivo.fecha_inicio, end: objetivo.fecha_fin });
+      const sum = ingresos.reduce((acc, i) => acc + (i.neto ?? 0), 0);
+      setTotal(sum);
+      setLoading(false);
+    };
+    run();
+  }, []);
+
+  if (loading) {
+    return (
+      <Card className="shadow-card border-accent/20">
+        <CardHeader>
+          <CardTitle>Objetivo Activo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-12 animate-pulse rounded bg-muted/30" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!hasGoal) {
+    return (
+      <Card className="shadow-card border-accent/20">
+        <CardHeader>
+          <CardTitle>Objetivo Activo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <p className="text-muted-foreground mb-4">
+              No tenés objetivos activos
+            </p>
+            <Button asChild>
+              <Link href="/objetivo">Crear objetivo</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const progress =
+    goal > 0 ? Math.min(100, Math.round((total / goal) * 100)) : 0;
+  const remaining = Math.max(0, goal - total);
+
+  return (
+    <Card className="shadow-card border-accent/20">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          Objetivo Activo
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="text-sm text-muted-foreground">
+          {period?.start} → {period?.end}
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <span>Progreso</span>
+          <span className="font-medium">{progress}%</span>
+        </div>
+
+        {/* barra de progreso simple (sin instalar nada extra) */}
+        <div className="h-3 w-full rounded bg-muted/30 overflow-hidden">
+          <div
+            className="h-full bg-accent transition-all"
+            style={{ width: `${progress}%` }}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            role="progressbar"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <div className="text-muted-foreground">Meta</div>
+            <div className="font-semibold">{formatCurrency(goal)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Acumulado</div>
+            <div className="font-semibold">{formatCurrency(total)}</div>
+          </div>
+          <div className="col-span-2">
+            <div className="text-muted-foreground">Restante</div>
+            <div className="font-semibold">{formatCurrency(remaining)}</div>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <Button asChild variant="secondary" className="w-full">
+            <Link href="/objetivo">Editar objetivo</Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

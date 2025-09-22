@@ -1,23 +1,119 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils/format";
-import { TrendingUp, DollarSign, Clock, Target } from "lucide-react";
 import dynamic from "next/dynamic";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils/format";
+import { getStorage } from "@/lib/storage";
+import {
+  fuelStatsForMonth,
+  getMonthBounds,
+  lastFuelInfo,
+} from "@/lib/utils/metrics";
+import GoalCard from "@/components/dashboard/GoalCard";
+import { TrendingUp, DollarSign, Clock, Fuel } from "lucide-react";
 
+// Tus gráficos ya existentes
 const DashboardCharts = dynamic(
-  () => import("../components/dashboard/DashboardCharts"),
+  () => import("@/components/dashboard/DashboardCharts"),
   { ssr: false }
 );
 
+type Ingreso = {
+  fecha: string;
+  plataforma: "uber" | "didi";
+  horas: number;
+  viajes: number;
+  bruto: number;
+  promos: number;
+  propinas: number;
+  peajes: number;
+  otros_costos: number;
+  neto: number;
+};
+
+type Combustible = {
+  fecha: string;
+  tipo: "nafta" | "gnc";
+  cantidad: number;
+  unidad: "L" | "m3";
+  monto: number;
+  odometro: number;
+  notas?: string;
+};
+
 export default function Page() {
+  const [netoMes, setNetoMes] = useState(0);
+  const [horasMes, setHorasMes] = useState(0);
+  const [gastoCombustibleMes, setGastoCombustibleMes] = useState(0);
+  const [costoPorKmMes, setCostoPorKmMes] = useState<null | number>(null);
+  const [ultimaCarga, setUltimaCarga] = useState<null | {
+    fecha: string;
+    cantidad: number;
+    unidad: "L" | "m3";
+    monto: number;
+    odometro: number;
+    precioUnidad: number | null;
+  }>(null);
+
+  useEffect(() => {
+    (async () => {
+      const s = getStorage();
+      const { start, end } = getMonthBounds(new Date());
+
+      // INGRESOS (mes)
+      const ingresos = (await s.ingresos.list()) as Ingreso[];
+      const ingMes = ingresos.filter((i) => {
+        const t = new Date(i.fecha).getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      });
+      setNetoMes(ingMes.reduce((acc, i) => acc + (i.neto || 0), 0));
+      setHorasMes(ingMes.reduce((acc, i) => acc + (i.horas || 0), 0));
+
+      // COMBUSTIBLE
+      const fuel = (await s.combustible.list()) as Combustible[];
+      const stats = fuelStatsForMonth(fuel);
+      setGastoCombustibleMes(stats.totalMonto);
+      setCostoPorKmMes(stats.costoPorKm);
+
+      const last = lastFuelInfo(fuel);
+      setUltimaCarga(
+        last
+          ? {
+              fecha: last.last.fecha,
+              cantidad: last.last.cantidad,
+              unidad: last.last.unidad,
+              monto: last.last.monto,
+              odometro: last.last.odometro,
+              precioUnidad: last.precioUnidad,
+            }
+          : null
+      );
+    })();
+  }, []);
+
   return (
     <div className="p-4 space-y-6">
+      {/* Accesos rápidos (mobile-first) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <Button asChild className="w-full">
+          <Link href="/ingresos/new" className="justify-center">
+            + Nuevo ingreso
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/combustible/new" className="justify-center">
+            + Nueva carga
+          </Link>
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Resumen de tu actividad</p>
+        <p className="text-muted-foreground">Resumen del mes</p>
       </div>
 
       {/* Métricas principales */}
@@ -26,15 +122,15 @@ export default function Page() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-success" />
-              Neto del Mes
+              Neto del mes
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {formatCurrency(0)}
+              {formatCurrency(netoMes)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Sin registros aún
+              Con tus registros
             </p>
           </CardContent>
         </Card>
@@ -43,67 +139,126 @@ export default function Page() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
-              Horas Trabajadas
+              Horas trabajadas
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">0h</div>
+            <div className="text-2xl font-bold text-foreground">
+              {horasMes.toFixed(1)}h
+            </div>
             <p className="text-xs text-muted-foreground mt-1">Este mes</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Objetivo activo */}
-      <Card className="shadow-card border-accent/20">
+      {/* Combustible: gasto + costo/km */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Fuel className="h-4 w-4" />
+              Gasto combustible (mes)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(gastoCombustibleMes)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Suma de cargas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Costo por km (mes)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {costoPorKmMes != null
+                ? costoPorKmMes.toLocaleString("es-AR", {
+                    style: "currency",
+                    currency: "ARS",
+                  })
+                : "—"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Combustible / km recorridos
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Última carga */}
+      <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Target className="h-5 w-5 text-accent" />
-            Objetivo Activo
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Fuel className="h-4 w-4" />
+            Última carga
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-center py-6">
-            <p className="text-muted-foreground mb-4">
-              No tienes objetivos activos
+        <CardContent className="text-sm">
+          {!ultimaCarga ? (
+            <p className="text-muted-foreground">
+              Aún no registraste combustible.
             </p>
-            <button className="px-4 py-2 bg-accent text-accent-foreground rounded-lg font-medium">
-              Crear Objetivo
-            </button>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <div className="text-muted-foreground">Fecha</div>
+                <div className="font-medium">{ultimaCarga.fecha}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Cantidad</div>
+                <div className="font-medium">
+                  {ultimaCarga.cantidad} {ultimaCarga.unidad}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Monto</div>
+                <div className="font-medium">
+                  {formatCurrency(ultimaCarga.monto)}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">
+                  Precio / {ultimaCarga.unidad}
+                </div>
+                <div className="font-medium">
+                  {ultimaCarga.precioUnidad != null
+                    ? ultimaCarga.precioUnidad.toLocaleString("es-AR", {
+                        style: "currency",
+                        currency: "ARS",
+                      })
+                    : "—"}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Odómetro</div>
+                <div className="font-medium">{ultimaCarga.odometro} km</div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Gráfico placeholder */}
-{/*       
+      {/* Objetivo activo: tu componente autogestionado */}
+      <GoalCard />
+
+      {/* Gráficos */}
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
-            Evolución de Ingresos
+            Evolución de ingresos
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-48 bg-muted/20 rounded-lg flex items-center justify-center">
-            <p className="text-muted-foreground">
-              Gráficos disponibles cuando tengas datos
-            </p>
-          </div>
+          <DashboardCharts />
         </CardContent>
-      </Card> */}
-      <DashboardCharts />
-      {/* Acceso rápido */}
-      <div className="text-center space-y-4">
-        <h3 className="text-lg font-medium">Comenzar Registrando</h3>
-        <div className="grid grid-cols-1 gap-3">
-          <Link
-            href="/ingresos/new"
-            className="flex items-center justify-center gap-3 p-4 bg-success/10 border border-success/20 rounded-xl transition-smooth hover:bg-success/20"
-          >
-            <DollarSign className="h-5 w-5 text-success" />
-            <span className="font-medium text-success">Registrar Ingreso</span>
-          </Link>
-        </div>
-      </div>
+      </Card>
     </div>
   );
 }

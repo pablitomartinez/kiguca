@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { z } from "zod";
-import { useForm, type Resolver, type DefaultValues } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -14,65 +15,79 @@ import { Textarea } from "@/components/ui/textarea";
 import { getStorage } from "@/lib/storage";
 
 type Storage = ReturnType<typeof getStorage>;
-type MantenimientoCreate = Parameters<Storage["mantenimiento"]["create"]>[0];
+type CombustibleUpdate = Parameters<Storage["combustible"]["update"]>[1];
 
 const schema = z.object({
-  fecha: z.string().min(1, "Requerido"),
-  categoria: z.string().min(1, "Requerido"),
-  costo: z.coerce.number().min(0, "≥ 0"),
-  km: z.coerce.number().int().min(1, "Odómetro > 0"), // ← requerido
+  fecha: z.string().min(1),
+  litros: z.coerce.number().min(0),
+  costo_total: z.coerce.number().min(0),
+  km: z.coerce.number().int().min(1, "Odómetro > 0"),
   notas: z.string().optional(),
 });
-
 type FormValues = z.infer<typeof schema>;
 
-export default function MantenimientoNewPage() {
+export default function EditCombustiblePage() {
   const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
-    defaultValues: {
-      fecha: new Date().toISOString().slice(0, 10),
-      categoria: "service",
-      costo: 0,
-      km: undefined,
-      notas: "",
-    } satisfies DefaultValues<FormValues>,
   });
-
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = form;
 
-const onSubmit = async (data: FormValues) => {
-  try {
-    const storage = getStorage();
+  useEffect(() => {
+    (async () => {
+      const s = getStorage();
+      const rec = await s.combustible.get(id);
+      if (!rec) {
+        toast.error("Carga no encontrada");
+        router.replace("/historial");
+        return;
+      }
+      // mapear dominio -> form
+      reset({
+        fecha: rec.fecha,
+        litros: rec.cantidad,
+        costo_total: rec.monto,
+        km: rec.odometro,
+        notas: rec.notas ?? "",
+      });
+    })();
+  }, [id, reset, router]);
 
-    const payload: MantenimientoCreate = {
-      fecha: data.fecha,
-      categoria: data.categoria,
-      detalle: data.notas?.trim() || data.categoria, // detalle es requerido
-      odometro: data.km, // requerido por el tipo
-      costo: data.costo
-      // adjunto_url: "..."  // si lo agregás a futuro
-    };
-
-    await storage.mantenimiento.create(payload);
-    toast.success("Mantenimiento guardado");
-    router.push("/historial");
-  } catch (e) {
-    console.error(e);
-    toast.error("No se pudo guardar");
-  }
-};
+  const onSubmit = async (data: FormValues) => {
+    try {
+      const s = getStorage();
+      // mapear form -> dominio (Partial para update)
+      const patch: CombustibleUpdate = {
+        fecha: data.fecha,
+        cantidad: data.litros,
+        monto: data.costo_total,
+        odometro: data.km,
+        notas: data.notas,
+        // tipo/unidad si querés también permitir editarlos:
+        // tipo: "nafta", unidad: "L",
+      };
+      await s.combustible.update(id, patch);
+      toast.success("Carga actualizada");
+      router.push("/historial");
+    } catch (e) {
+      console.error(e);
+      toast.error("No se pudo actualizar");
+    }
+  };
 
   return (
     <div className="p-4">
       <Card>
         <CardHeader>
-          <CardTitle>Registrar mantenimiento</CardTitle>
+          <CardTitle>Editar combustible</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -80,50 +95,39 @@ const onSubmit = async (data: FormValues) => {
               <div>
                 <Label>Fecha</Label>
                 <Input type="date" {...register("fecha")} />
-                {errors.fecha && (
-                  <p className="text-sm text-red-500">{errors.fecha.message}</p>
-                )}
               </div>
               <div>
-                <Label>Categoría</Label>
-                <Input
-                  placeholder="aceite, frenos, neumáticos…"
-                  {...register("categoria")}
-                />
-                {errors.categoria && (
-                  <p className="text-sm text-red-500">
-                    {errors.categoria.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label>Costo (ARS)</Label>
+                <Label>Litros</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min={0}
-                  {...register("costo")}
+                  {...register("litros")}
                 />
-                {errors.costo && (
-                  <p className="text-sm text-red-500">{errors.costo.message}</p>
-                )}
+              </div>
+              <div>
+                <Label>Costo total</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  {...register("costo_total")}
+                />
               </div>
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <Label>KM (odómetro)</Label>
-                <Input type="number" min={0} {...register("km")} />
+                <Label>Odómetro (km)</Label>
+                <Input type="number" min={1} {...register("km")} />
               </div>
               <div className="sm:col-span-2">
                 <Label>Notas</Label>
                 <Textarea rows={3} {...register("notas")} />
               </div>
             </div>
-
             <div className="flex gap-2">
               <Button type="submit" disabled={isSubmitting}>
-                Guardar
+                Guardar cambios
               </Button>
               <Button
                 type="button"
