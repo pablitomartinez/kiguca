@@ -1,6 +1,7 @@
 import type {
   StorageEngine,
   Ingreso,
+  IngresoCreate,
   Combustible,
   Mantenimiento,
   Objetivo,
@@ -62,21 +63,18 @@ class LocalStorageEngine implements StorageEngine {
       return ingresos.find((item) => item.id === id) || null;
     },
 
-    create: async (
-      data: Omit<Ingreso, "id" | "created_at" | "updated_at">
-    ): Promise<Ingreso> => {
+    create: async (data: IngresoCreate): Promise<Ingreso> => {
       const ingresos = this.getList<Ingreso>("ingresos");
       const newIngreso: Ingreso = {
         ...this.addTimestamps(data),
         id: this.generateId(),
-        // Calcular neto
+        // neto lo calculamos acá para el engine local
         neto:
           data.bruto +
           data.promos +
           data.propinas -
           (data.peajes + data.otros_costos),
       };
-
       ingresos.push(newIngreso);
       this.setList("ingresos", ingresos);
       return newIngreso;

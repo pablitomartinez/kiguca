@@ -1,6 +1,9 @@
 // Tipos de datos para Kiguca PWA
 // Todos los importes en ARS (enteros)
 
+// ✅ añade este alias de tipo de creación SIN `neto`
+export type IngresoCreate = Omit<Ingreso, "id" | "neto" | "created_at" | "updated_at">;
+
 export interface Ingreso {
   id?: string;
   fecha: string; // ISO YYYY-MM-DD
@@ -104,9 +107,7 @@ export interface StorageEngine {
   ingresos: {
     list(): Promise<Ingreso[]>;
     get(id: string): Promise<Ingreso | null>;
-    create(
-      data: Omit<Ingreso, "id" | "created_at" | "updated_at">
-    ): Promise<Ingreso>;
+    create(data: IngresoCreate): Promise<Ingreso>;
     update(id: string, data: Partial<Ingreso>): Promise<Ingreso>;
     remove(id: string): Promise<boolean>;
   };

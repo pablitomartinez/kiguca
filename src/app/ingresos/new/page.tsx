@@ -101,9 +101,9 @@ export default function NewIngresoPage() {
 
  const onSubmit = async (data: FormValues) => {
    try {
-     const payload = { ...data, neto };
      const storage = getStorage();
-     await storage.ingresos.create(payload); // 👈 colección ingresos
+     // 🚫 no mandes `neto` a Supabase (lo calcula la DB)
+     await storage.ingresos.create(data);
 
      toast.success("Ingreso guardado");
      router.push("/");
@@ -112,6 +112,7 @@ export default function NewIngresoPage() {
      toast.error("No se pudo guardar el ingreso");
    }
  };
+
 
   return (
     <div className="p-4">

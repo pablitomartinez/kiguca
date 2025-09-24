@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getStorage } from "@/lib/storage";
+import { getStorage } from "../../../lib/storage";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 const UL = "kiguca_supabase_url";
 const AK = "kiguca_supabase_key";
@@ -56,6 +57,7 @@ export default function SupabaseSettingsPage() {
           <CardTitle>Supabase – Configuración</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <LogoutButton />
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>Project URL</Label>
