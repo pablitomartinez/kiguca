@@ -1,19 +1,16 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import {
-  DollarSign,
-  Fuel,
-  Wrench,
-  TrendingUp,
-  Clock,
-  Target,
-} from "lucide-react";
-
+import { DollarSign, Fuel, Wrench, TrendingUp, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils/format";
+import { getStorage } from "@/lib/storage";
+import GoalCard from "@/components/dashboard/GoalCard";
+
+
 
 // Charts (SSR off)
 const DashboardCharts = dynamic(
@@ -23,10 +20,49 @@ const DashboardCharts = dynamic(
   }
 );
 
-// Goal card
-import GoalCard from "@/components/dashboard/GoalCard";
+
 
 export default function Page() {
+  const [netoMes, setNetoMes] = useState(0);
+  const [horasMes, setHorasMes] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const s = getStorage();
+      const all = await s.ingresos.list();
+
+      // límites del mes actual
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const inMonth = all.filter((i: any) => {
+        const t = new Date(i.fecha).getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      });
+
+      const neto = inMonth.reduce((acc: number, i: any) => {
+        const n =
+          typeof i.neto === "number"
+            ? i.neto
+            : (Number(i.bruto) || 0) +
+              (Number(i.promos) || 0) +
+              (Number(i.propinas) || 0) -
+              ((Number(i.peajes) || 0) + (Number(i.otros_costos) || 0));
+        return acc + n;
+      }, 0);
+
+      const horas = inMonth.reduce(
+        (acc: number, i: any) => acc + Number(i.horas || 0),
+        0
+      );
+
+      setNetoMes(neto);
+      setHorasMes(horas);
+    })();
+  }, []);
+
+
   return (
     <div className="p-4 space-y-6">
       {/* Header */}
@@ -77,11 +113,8 @@ export default function Page() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              {formatCurrency(0)}
+              {formatCurrency(netoMes)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Sin registros aún
-            </p>
           </CardContent>
         </Card>
 
@@ -93,8 +126,10 @@ export default function Page() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">0h</div>
-            <p className="text-xs text-muted-foreground mt-1">Este mes</p>
+            <div className="text-2xl font-bold text-foreground">
+              {horasMes.toFixed(1)}h
+            </div>
+            {/* <p className="text-xs text-muted-foreground mt-1">Este mes</p> */}
           </CardContent>
         </Card>
       </div>

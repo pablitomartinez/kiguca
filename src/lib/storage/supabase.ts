@@ -50,6 +50,178 @@ class SupabaseEngine {
       if (error) throw error;
       return true;
     },
+    import: async (dump: any) => {
+      const errors: string[] = [];
+      let created = 0;
+      let updated = 0; // para ahora no hacemos upsert, solo insert; dejamos el contador por compat
+
+      // helpers
+      const safe = <T extends object>(o: any, pick: (keyof T)[]) => {
+        const out: any = {};
+        for (const k of pick)
+          if (o[k as string] !== undefined) out[k as string] = o[k as string];
+        return out;
+      };
+      const arr = (x: any) => (Array.isArray(x) ? x : []);
+
+      // 1) INGRESOS
+      try {
+        const raw = arr(dump.ingresos);
+        if (raw.length) {
+          const rows = raw.map((r: any) =>
+            safe<{
+              fecha: string;
+              plataforma: "uber" | "didi";
+              horas: number;
+              viajes: number;
+              bruto: number;
+              promos: number;
+              propinas: number;
+              peajes: number;
+              otros_costos: number;
+              notas?: string;
+            }>(r, [
+              "fecha",
+              "plataforma",
+              "horas",
+              "viajes",
+              "bruto",
+              "promos",
+              "propinas",
+              "peajes",
+              "otros_costos",
+              "notas",
+            ])
+          );
+          if (rows.length) {
+            const { error, count } = await supabase
+              .from("ingresos")
+              .insert(rows, { count: "exact" });
+            if (error) throw error;
+            created += count ?? rows.length;
+          }
+        }
+      } catch (e: any) {
+        errors.push(`ingresos: ${e.message ?? e}`);
+      }
+
+      // 2) COMBUSTIBLE (normaliza formatos viejos)
+      try {
+        const raw = arr(dump.combustible);
+        if (raw.length) {
+          const rows = raw.map((r: any) => {
+            // Soporte legacy: {litros, costo_total, km}
+            if (
+              r.litros !== undefined ||
+              r.costo_total !== undefined ||
+              r.km !== undefined
+            ) {
+              return {
+                fecha: r.fecha,
+                tipo: r.tipo ?? "nafta",
+                cantidad: Number(r.litros ?? r.cantidad ?? 0),
+                unidad: r.unidad ?? "L",
+                monto: Number(r.costo_total ?? r.monto ?? 0),
+                odometro: Number(r.km ?? r.odometro ?? 0),
+                estacion: r.estacion ?? null,
+                notas: r.notas ?? null,
+              };
+            }
+            // formato actual
+            return safe<{
+              fecha: string;
+              tipo: "nafta" | "gnc";
+              cantidad: number;
+              unidad: "L" | "m3";
+              monto: number;
+              odometro: number;
+              estacion?: string;
+              notas?: string;
+            }>(r, [
+              "fecha",
+              "tipo",
+              "cantidad",
+              "unidad",
+              "monto",
+              "odometro",
+              "estacion",
+              "notas",
+            ]);
+          });
+          const clean = rows.filter(
+            (x: any) => x.fecha && x.monto !== undefined && x.odometro
+          );
+          if (clean.length) {
+            const { error, count } = await supabase
+              .from("combustible")
+              .insert(clean, { count: "exact" });
+            if (error) throw error;
+            created += count ?? clean.length;
+          }
+        }
+      } catch (e: any) {
+        errors.push(`combustible: ${e.message ?? e}`);
+      }
+
+      // 3) MANTENIMIENTO (normaliza km→odometro)
+      try {
+        const raw = arr(dump.mantenimiento);
+        if (raw.length) {
+          const rows = raw.map((r: any) => ({
+            fecha: r.fecha,
+            categoria: r.categoria,
+            detalle: r.detalle ?? r.notas ?? "-", // si venía solo "notas"
+            odometro: Number(r.odometro ?? r.km ?? 0),
+            costo: Number(r.costo ?? 0),
+            adjunto_url: r.adjunto_url ?? null,
+          }));
+          const clean = rows.filter(
+            (x: any) =>
+              x.fecha && x.categoria && x.detalle && x.costo !== undefined
+          );
+          if (clean.length) {
+            const { error, count } = await supabase
+              .from("mantenimiento")
+              .insert(clean, { count: "exact" });
+            if (error) throw error;
+            created += count ?? clean.length;
+          }
+        }
+      } catch (e: any) {
+        errors.push(`mantenimiento: ${e.message ?? e}`);
+      }
+
+      // 4) OBJETIVOS (ahora incluye `notas`)
+      try {
+        const raw = arr(dump.objetivos);
+        if (raw.length) {
+          const rows = raw.map((r: any) => ({
+            nombre: r.nombre ?? "Objetivo del período",
+            monto: Number(r.monto ?? 0),
+            periodo: r.periodo, // "semanal" | "mensual"
+            fecha_inicio: r.fecha_inicio,
+            fecha_fin: r.fecha_fin,
+            estado: r.estado ?? "activo",
+            notas: r.notas ?? null,
+          }));
+          const clean = rows.filter(
+            (x: any) =>
+              x.monto > 0 && x.periodo && x.fecha_inicio && x.fecha_fin
+          );
+          if (clean.length) {
+            const { error, count } = await supabase
+              .from("objetivos")
+              .insert(clean, { count: "exact" });
+            if (error) throw error;
+            created += count ?? clean.length;
+          }
+        }
+      } catch (e: any) {
+        errors.push(`objetivos: ${e.message ?? e}`);
+      }
+
+      return { created, updated, errors };
+    },
   };
 
   // ---------- Combustible ----------
