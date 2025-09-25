@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { getStorage } from "@/lib/storage";
 import { formatCurrency } from "@/lib/utils/format";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
+
 
 import type {
   Ingreso as IngresoBase,
@@ -30,8 +32,23 @@ export default function HistorialPage() {
   const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+  const searchParams = useSearchParams();
   const [plataforma, setPlataforma] = useState<PlataformaFilter>("all");
 
+
+  useEffect(() => {
+    const qsFrom = searchParams.get("from");
+    const qsTo = searchParams.get("to");
+
+    // Validación básica YYYY-MM-DD
+    const isDate = (s: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+    setFrom((prev) => (isDate(qsFrom) ? qsFrom! : prev));
+    setTo((prev) => (isDate(qsTo) ? qsTo! : prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  
   // Combustible
   const [fuel, setFuel] = useState<Combustible[]>([]);
   // Mantenimiento
