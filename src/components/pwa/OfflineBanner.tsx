@@ -1,23 +1,27 @@
+// components/pwa/OfflineBanner.tsx
 "use client";
 import { useEffect, useState } from "react";
 
-export default function OfflineBanner() {
-  const [online, setOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine : true
-  );
+function useOnline() {
+  const [online, setOnline] = useState(true);
   useEffect(() => {
-    const on = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
+    const update = () => setOnline(navigator.onLine);
+    update(); // estado inicial correcto
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
     return () => {
-      window.removeEventListener("online", on);
-      window.removeEventListener("offline", off);
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
     };
   }, []);
+  return online;
+}
+
+export default function OfflineBanner() {
+  const online = useOnline();
   if (online) return null;
   return (
-    <div className="fixed top-0 inset-x-0 z-50 bg-amber-500 text-black text-center text-sm py-1">
+    <div className="w-full bg-amber-500 text-black px-3 py-2 text-center text-sm">
       Sin conexión — tus registros se guardarán cuando vuelva internet
     </div>
   );
