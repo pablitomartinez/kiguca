@@ -1,60 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { getStorage } from "@/lib/storage";
-import { supabase } from "@/lib/supabase/client";
-
-const UL = "kiguca_supabase_url";
-const AK = "kiguca_supabase_key";
-const ENG = "kiguca_storage_engine";
+import { createClient } from "@supabase/supabase-js";
 
 export default function SupabaseSettingsPage() {
-  const [url, setUrl] = useState("");
-  const [key, setKey] = useState("");
-  const [engine, setEngine] = useState<"local" | "supabase">("local");
+  const [email, setEmail] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "ok" | "error" | "checking">(
     "idle"
   );
   const [statusMsg, setStatusMsg] = useState<string>("");
 
-  // cargar preferencias guardadas (dev override por localStorage)
+  // Cliente de supabase leyendo ENV (prod/dev)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const supabase = useMemo(
+    () => createClient(supabaseUrl, supabaseAnon),
+    [supabaseUrl, supabaseAnon]
+  );
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setUrl(localStorage.getItem(UL) ?? "");
-    setKey(localStorage.getItem(AK) ?? "");
-    setEngine((localStorage.getItem(ENG) as any) ?? "local");
-  }, []);
-
-  function save() {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(UL, url.trim());
-    localStorage.setItem(AK, key.trim());
-    alert(
-      "Guardado. En dev, la app leerá estas credenciales desde localStorage."
-    );
-  }
-
-  function applyEngine(next: "local" | "supabase") {
-    if (typeof window === "undefined") return;
-    if (next === "supabase" && (!url.trim() || !key.trim())) {
-      alert("Completá URL y Anon Key antes de cambiar a Supabase.");
-      return;
-    }
-    localStorage.setItem(ENG, next);
-    setEngine(next);
-    alert(`Adapter cambiado a: ${next}. Recargá la página si no ves cambios.`);
-  }
+    supabase.auth
+      .getUser()
+      .then(({ data }) => setEmail(data.user?.email ?? null));
+  }, [supabase]);
 
   async function testConnection() {
     try {
       setStatus("checking");
       setStatusMsg("Probando conexión…");
-      // prueba simple: contar 1 fila de ingresos
       const { error } = await supabase
         .from("ingresos")
         .select("id", { count: "exact", head: true })
@@ -69,7 +47,7 @@ export default function SupabaseSettingsPage() {
     }
   }
 
-  async function exportLocal() {
+  async function exportData() {
     const s = getStorage();
     const data = await s.export?.();
     const json = JSON.stringify(data ?? {}, null, 2);
@@ -85,10 +63,8 @@ export default function SupabaseSettingsPage() {
     try {
       const text = await file.text();
       const json = JSON.parse(text);
-      // llamamos a la importación del adapter
-      const s = await import("@/lib/storage");
-      const storage = s.getStorage?.() ?? s.storage;
-      const res = await storage.import?.(json);
+      const s = getStorage();
+      const res = await s.import?.(json);
       alert(
         `Importación terminada.\nCreados: ${res?.created ?? 0}\nActualizados: ${
           res?.updated ?? 0
@@ -100,110 +76,56 @@ export default function SupabaseSettingsPage() {
     }
   }
 
-  const envSnippet = [
-    `NEXT_PUBLIC_STORAGE_ENGINE=${engine}`,
-    `NEXT_PUBLIC_SUPABASE_URL=${url || "<tu-url>"}`,
-    `NEXT_PUBLIC_SUPABASE_ANON_KEY=${key || "<tu-anon-key>"}`,
-  ].join("\n");
-
   return (
     <div className="p-4 space-y-6">
-      {/* Estado actual */}
+      {/* Estado */}
       <Card>
         <CardHeader>
           <CardTitle>Estado</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="text-sm">
+          <div className="text-sm space-y-1">
             <div>
-              <b>Adapter actual:</b> {engine}
+              <b>Motor de datos:</b> Supabase (sincronizado)
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Button size="sm" onClick={testConnection} variant="outline">
-                Probar conexión
-              </Button>
-              {status !== "idle" && (
-                <span
-                  className={
-                    status === "ok"
-                      ? "text-green-500 text-sm"
-                      : status === "checking"
-                      ? "text-muted-foreground text-sm"
-                      : "text-red-500 text-sm"
-                  }
-                >
-                  {statusMsg}
-                </span>
-              )}
+            <div>
+              <b>Usuario:</b> {email ?? "No logueado"}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Credenciales Supabase */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Supabase – Credenciales</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Project URL</Label>
-              <Input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://xyz.supabase.co"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Anon Key</Label>
-              <Input
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                placeholder="eyJhbGciOi..."
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={save}>Guardar</Button>
-            <Button variant="secondary" onClick={testConnection}>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={testConnection} variant="outline">
               Probar conexión
             </Button>
-          </div>
-
-          <div className="space-y-2">
-            <Label>.env.local (sugerido para prod)</Label>
-            <pre className="rounded bg-muted/20 p-3 text-xs whitespace-pre-wrap">
-              {envSnippet}
-            </pre>
+            {status !== "idle" && (
+              <span
+                className={
+                  status === "ok"
+                    ? "text-green-500 text-sm"
+                    : status === "checking"
+                    ? "text-muted-foreground text-sm"
+                    : "text-red-500 text-sm"
+                }
+              >
+                {statusMsg}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Elegir adapter */}
+      {/* Variables de entorno (solo referencia) */}
       <Card>
         <CardHeader>
-          <CardTitle>Adapter</CardTitle>
+          <CardTitle>Entorno</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex gap-2">
-            <Button
-              variant={engine === "local" ? "default" : "outline"}
-              onClick={() => applyEngine("local")}
-            >
-              LocalStorage
-            </Button>
-            <Button
-              variant={engine === "supabase" ? "default" : "outline"}
-              onClick={() => applyEngine("supabase")}
-            >
-              Supabase (beta)
-            </Button>
+        <CardContent className="space-y-2 text-sm">
+          <div>
+            <b>NEXT_PUBLIC_STORAGE_ENGINE:</b> <code>supabase</code>
           </div>
-          <p className="text-xs text-muted-foreground">
-            En desarrollo, la app usa estas preferencias desde localStorage. En
-            producción, definilas en <code>.env.local</code>.
-          </p>
+          <div className="text-muted-foreground">
+            Las credenciales se toman de <code>.env.local</code> (dev) o de las
+            Environment Variables en Vercel (prod).
+          </div>
         </CardContent>
       </Card>
 
@@ -214,10 +136,9 @@ export default function SupabaseSettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={exportLocal}>
-              Exportar datos locales (JSON)
+            <Button variant="secondary" onClick={exportData}>
+              Exportar datos (JSON)
             </Button>
-
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="file"
@@ -242,8 +163,12 @@ export default function SupabaseSettingsPage() {
         <CardHeader>
           <CardTitle>Sesión</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-2">
           <LogoutButton />
+          <div className="text-xs text-muted-foreground">
+            Si no ves tu sesión, iniciá desde la pantalla de Login con Magic
+            Link.
+          </div>
         </CardContent>
       </Card>
     </div>

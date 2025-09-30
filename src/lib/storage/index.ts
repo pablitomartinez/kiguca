@@ -1,22 +1,13 @@
 // src/lib/storage/index.ts
-import type { StorageEngine, StorageEngineType } from "@/types";
-import LocalStorageEngine from "./localStorage";
+import type { StorageEngine } from "@/types";
 import SupabaseEngine from "./supabase";
 
-function createStorageEngine(): StorageEngine {
-  const type =
-    (process.env.NEXT_PUBLIC_STORAGE_ENGINE as StorageEngineType) || "local";
-  return type === "supabase" ? new SupabaseEngine() : new LocalStorageEngine();
+/** Siempre Supabase */
+export function getStorage(): StorageEngine {
+  return new SupabaseEngine();
 }
 
-export const storage = createStorageEngine();
-
-export function getStorage() {
-  return storage;
-}
-
-export function getCurrentStorageType(): StorageEngineType {
-  return (
-    (process.env.NEXT_PUBLIC_STORAGE_ENGINE as StorageEngineType) || "local"
-  );
+/** Para mostrar en UI si hace falta */
+export function getCurrentStorageType(): "supabase" {
+  return "supabase";
 }

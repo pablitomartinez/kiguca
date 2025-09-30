@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getStorage } from "@/lib/storage";
+import { emitDataUpdated } from "@/lib/utils/events";
 
 type Storage = ReturnType<typeof getStorage>;
 type CombustibleCreate = Parameters<Storage["combustible"]["create"]>[0];
@@ -65,6 +66,7 @@ export default function CombustibleNewPage() {
       };
 
       await storage.combustible.create(payload);
+      emitDataUpdated();
       toast.success("Carga de combustible guardada");
       router.push("/historial");
     } catch (e) {

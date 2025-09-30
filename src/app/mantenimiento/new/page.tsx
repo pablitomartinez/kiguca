@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getStorage } from "@/lib/storage";
+import { emitDataUpdated } from "@/lib/utils/events";
 
 type Storage = ReturnType<typeof getStorage>;
 type MantenimientoCreate = Parameters<Storage["mantenimiento"]["create"]>[0];
@@ -60,6 +61,7 @@ const onSubmit = async (data: FormValues) => {
     };
 
     await storage.mantenimiento.create(payload);
+    emitDataUpdated();
     toast.success("Mantenimiento guardado");
     router.push("/historial");
   } catch (e) {

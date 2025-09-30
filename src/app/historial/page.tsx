@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import type {
   Combustible as CombustibleBase,
   Mantenimiento as MantenimientoBase,
 } from "@/types";
+import { emitDataUpdated } from "@/lib/utils/events";
 
 type Ingreso = IngresoBase & { id: string };
 type Combustible = CombustibleBase & { id: string };
@@ -25,7 +26,20 @@ type Mantenimiento = MantenimientoBase & { id: string };
 type PlataformaFilter = "all" | "uber" | "didi";
 type Tab = "ingresos" | "combustible" | "mantenimiento";
 
+
+/** Page = Suspense wrapper (requerido por Next cuando usás useSearchParams) */
 export default function HistorialPage() {
+    const [tab, setTab] = useState<Tab>("ingresos");
+
+  return (
+    <Suspense fallback={<div className="p-4 text-sm opacity-60">Cargando historial…</div>}>
+      <HistorialInner />
+    </Suspense>
+  );
+}
+
+
+function HistorialInner() {
   const [tab, setTab] = useState<Tab>("ingresos");
 
   // Ingresos
@@ -158,7 +172,7 @@ export default function HistorialPage() {
         setFuel((prev) => prev.filter((c) => c.id !== id));
       if (kind === "mantenimiento")
         setMant((prev) => prev.filter((m) => m.id !== id));
-
+emitDataUpdated();
       toast.success("Eliminado.");
     } catch (e) {
       console.error(e);

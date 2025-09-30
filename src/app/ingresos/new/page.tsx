@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils/format";
 
 import { getStorage } from "@/lib/storage";
+import { emitDataUpdated } from "@/lib/utils/events";
 
 const schema = z.object({
   fecha: z.string().min(1, "Requerido"), // YYYY-MM-DD
@@ -104,6 +105,7 @@ export default function NewIngresoPage() {
      const storage = getStorage();
      // 🚫 no mandes `neto` a Supabase (lo calcula la DB)
      await storage.ingresos.create(data);
+     emitDataUpdated();
 
      toast.success("Ingreso guardado");
      router.push("/");
