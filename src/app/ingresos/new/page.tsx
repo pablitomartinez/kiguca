@@ -40,6 +40,9 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const toNum = (v: unknown) =>
+  v === "" || v == null ? 0 : typeof v === "number" ? v : Number(v);
+
 export default function NewIngresoPage() {
   const router = useRouter();
 
@@ -71,11 +74,11 @@ export default function NewIngresoPage() {
 
   const values = watch();
   const neto = useMemo(() => {
-    const b = values.bruto || 0;
-    const pr = values.promos || 0;
-    const pp = values.propinas || 0;
-    const pe = values.peajes || 0;
-    const oc = values.otros_costos || 0;
+    const b = toNum(values.bruto || 0) ;
+    const pr =toNum( values.promos || 0) ;
+    const pp =toNum( values.propinas || 0) ;
+    const pe =toNum( values.peajes || 0) ;
+    const oc =toNum( values.otros_costos || 0) ;
     return b + pr + pp - (pe + oc);
   }, [values]);
 
