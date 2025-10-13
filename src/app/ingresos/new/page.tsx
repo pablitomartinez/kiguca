@@ -82,27 +82,6 @@ export default function NewIngresoPage() {
     return b + pr + pp - (pe + oc);
   }, [values]);
 
-//   async function onSubmit(data: FormValues) {
-//     try {
-//       const payload = {
-//         ...data,
-//         neto,
-//         // si tu StorageEngine necesita un id, descomentá:
-//         // id: crypto.randomUUID(),
-//       };
-
-//       const storage = getStorage(); // o usa `storage` si ese es tu export
-//       // asumo que la API es create("ingresos", payload)
-//       await storage.create("ingresos", payload);
-
-//       toast.success("Ingreso guardado");
-//       router.push("/"); // volver al dashboard
-//     } catch (e) {
-//       console.error(e);
-//       toast.error("No se pudo guardar el ingreso");
-//     }
-//   }
-
  const onSubmit = async (data: FormValues) => {
    try {
      const storage = getStorage();

@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getStorage } from "@/lib/storage";
 import { formatCurrency } from "@/lib/utils/format";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
 
+import AuthGate from "@/components/AuthGate";
+import { useTable } from "@/hooks/useTable";
 
 import type {
   Ingreso as IngresoBase,
@@ -26,29 +27,56 @@ type Mantenimiento = MantenimientoBase & { id: string };
 type PlataformaFilter = "all" | "uber" | "didi";
 type Tab = "ingresos" | "combustible" | "mantenimiento";
 
-
 /** Page = Suspense wrapper (requerido por Next cuando usás useSearchParams) */
 export default function HistorialPage() {
-    const [tab, setTab] = useState<Tab>("ingresos");
+  const [tab, setTab] = useState<Tab>("ingresos");
 
   return (
-    <Suspense fallback={<div className="p-4 text-sm opacity-60">Cargando historial…</div>}>
-      <HistorialInner />
+    <Suspense
+      fallback={
+        <div className="p-4 text-sm opacity-60">Cargando historial…</div>
+      }
+    >
+      <AuthGate>
+        <HistorialInner />
+      </AuthGate>
     </Suspense>
   );
 }
-
 
 function HistorialInner() {
   const [tab, setTab] = useState<Tab>("ingresos");
 
   // Ingresos
-  const [ingresos, setIngresos] = useState<Ingreso[]>([]);
+  // const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
   const searchParams = useSearchParams();
   const [plataforma, setPlataforma] = useState<PlataformaFilter>("all");
 
+  // Ingresos (orden por fecha desc)
+  const {
+    data: ingresos,
+    loading: loadingIng,
+    error: errIng,
+    remove: removeIngreso,
+  } = useTable<Ingreso>("ingresos", { column: "fecha" });
+
+  // Combustible
+  const {
+    data: fuel,
+    loading: loadingFuel,
+    error: errFuel,
+    remove: removeCombustible,
+  } = useTable<Combustible>("combustible", { column: "fecha" });
+
+  // Mantenimiento
+  const {
+    data: mant,
+    loading: loadingMant,
+    error: errMant,
+    remove: removeMant,
+  } = useTable<Mantenimiento>("mantenimiento", { column: "fecha" });
 
   useEffect(() => {
     const qsFrom = searchParams.get("from");
@@ -62,27 +90,26 @@ function HistorialInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  
   // Combustible
-  const [fuel, setFuel] = useState<Combustible[]>([]);
+  // const [fuel, setFuel] = useState<Combustible[]>([]);
   // Mantenimiento
-  const [mant, setMant] = useState<Mantenimiento[]>([]);
+  // const [mant, setMant] = useState<Mantenimiento[]>([]);
 
-  useEffect(() => {
-    const load = async () => {
-      const s = getStorage();
+  // useEffect(() => {
+  //   const load = async () => {
+  //     const s = getStorage();
 
-      const li = await s.ingresos.list();
-      setIngresos(li.filter((x): x is Ingreso => typeof x.id === "string"));
+  //     const li = await s.ingresos.list();
+  //     setIngresos(li.filter((x): x is Ingreso => typeof x.id === "string"));
 
-      const lc = await s.combustible.list();
-      setFuel(lc.filter((x): x is Combustible => typeof x.id === "string"));
+  //     const lc = await s.combustible.list();
+  //     setFuel(lc.filter((x): x is Combustible => typeof x.id === "string"));
 
-      const lm = await s.mantenimiento.list();
-      setMant(lm.filter((x): x is Mantenimiento => typeof x.id === "string"));
-    };
-    load();
-  }, []);
+  //     const lm = await s.mantenimiento.list();
+  //     setMant(lm.filter((x): x is Mantenimiento => typeof x.id === "string"));
+  //   };
+  //   load();
+  // }, []);
 
   // Filtros de ingresos
   const filteredIngresos = useMemo(() => {
@@ -148,31 +175,49 @@ function HistorialInner() {
     URL.revokeObjectURL(a.href);
   }
 
+  // async function handleDelete(
+  //   kind: "ingresos" | "combustible" | "mantenimiento",
+  //   id: string
+  // ) {
+  //   if (!confirm("¿Eliminar este registro?")) return;
+  //   const s = getStorage();
+  //   try {
+  //     let ok = false;
+  //     if (kind === "ingresos") ok = await s.ingresos.remove(id);
+  //     if (kind === "combustible") ok = await s.combustible.remove(id);
+  //     if (kind === "mantenimiento") ok = await s.mantenimiento.remove(id);
+
+  //     if (!ok) {
+  //       toast.error("No se pudo eliminar.");
+  //       return;
+  //     }
+
+  //     // refrescar listas en memoria
+  //     if (kind === "ingresos")
+  //       setIngresos((prev) => prev.filter((i) => i.id !== id));
+  //     if (kind === "combustible")
+  //       setFuel((prev) => prev.filter((c) => c.id !== id));
+  //     if (kind === "mantenimiento")
+  //       setMant((prev) => prev.filter((m) => m.id !== id));
+  //     emitDataUpdated();
+  //     toast.success("Eliminado.");
+  //   } catch (e) {
+  //     console.error(e);
+  //     toast.error("Error al eliminar.");
+  //   }
+  // }
+
+  // UI
   async function handleDelete(
     kind: "ingresos" | "combustible" | "mantenimiento",
     id: string
   ) {
     if (!confirm("¿Eliminar este registro?")) return;
-    const s = getStorage();
     try {
-      let ok = false;
-      if (kind === "ingresos") ok = await s.ingresos.remove(id);
-      if (kind === "combustible") ok = await s.combustible.remove(id);
-      if (kind === "mantenimiento") ok = await s.mantenimiento.remove(id);
+      if (kind === "ingresos") await removeIngreso(id);
+      if (kind === "combustible") await removeCombustible(id);
+      if (kind === "mantenimiento") await removeMant(id);
 
-      if (!ok) {
-        toast.error("No se pudo eliminar.");
-        return;
-      }
-
-      // refrescar listas en memoria
-      if (kind === "ingresos")
-        setIngresos((prev) => prev.filter((i) => i.id !== id));
-      if (kind === "combustible")
-        setFuel((prev) => prev.filter((c) => c.id !== id));
-      if (kind === "mantenimiento")
-        setMant((prev) => prev.filter((m) => m.id !== id));
-emitDataUpdated();
       toast.success("Eliminado.");
     } catch (e) {
       console.error(e);
@@ -180,7 +225,6 @@ emitDataUpdated();
     }
   }
 
-  // UI
   return (
     <div className="p-4 space-y-4">
       {/* Header + conmutador */}
@@ -473,9 +517,7 @@ emitDataUpdated();
                   >
                     <div className="text-sm">
                       <div className="font-medium">{(m as any).fecha}</div>
-                      <div className="text-muted-foreground">
-                        {m.categoria}
-                      </div>
+                      <div className="text-muted-foreground">{m.categoria}</div>
                     </div>
                     <div className="text-sm">
                       <div>
