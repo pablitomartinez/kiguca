@@ -27,10 +27,25 @@ export default function LoginPage() {
     router.push("/"); // a Home
   }
 
+  async function loginWithGoogle() {
+    setErr(null);
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`, // creamos esa ruta abajo
+      },
+    });
+    if (error) setErr(error.message);
+    setLoading(false);
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-3">
         <h1 className="text-2xl font-bold">Ingresá</h1>
+
+        {/* Email + Password (lo tuyo) */}
         <input
           className="w-full rounded border p-2 bg-background"
           placeholder="tu@email.com"
@@ -53,6 +68,19 @@ export default function LoginPage() {
           disabled={loading}
         >
           {loading ? "Ingresando..." : "Ingresar"}
+        </button>
+
+        {/* Divider simple */}
+        <div className="text-center text-sm text-muted-foreground">o</div>
+
+        {/* Botón Google */}
+        <button
+          type="button"
+          onClick={loginWithGoogle}
+          className="w-full rounded border p-2"
+          disabled={loading}
+        >
+          {loading ? "Redirigiendo..." : "Continuar con Google"}
         </button>
       </form>
     </div>
