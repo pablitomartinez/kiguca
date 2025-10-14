@@ -23,18 +23,10 @@ export default function WelcomeBanner() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       const u = data.user;
-      if (!u) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+      if (!u) { setUser(null); setLoading(false); return; }
       const meta = u.user_metadata || {};
       const name =
-        meta.full_name ||
-        meta.name ||
-        meta.given_name ||
-        meta.user_name ||
-        null;
+        meta.full_name || meta.name || meta.given_name || meta.user_name || null;
       const picture = meta.avatar_url || meta.picture || null;
       setUser({
         name: name ?? null,
@@ -47,20 +39,18 @@ export default function WelcomeBanner() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border p-5 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 animate-pulse">
-        <div className="h-6 w-36 rounded bg-foreground/10 mb-2" />
-        <div className="h-4 w-64 rounded bg-foreground/10" />
+      <div className="rounded-xl border p-4 bg-muted/30 animate-pulse">
+        <div className="h-4 w-28 rounded bg-foreground/10 mb-2" />
+        <div className="h-5 w-40 rounded bg-foreground/10" />
       </div>
     );
   }
 
-  // Si no hay sesión, muestra un banner genérico
   if (!user) {
     return (
-      <div className="rounded-2xl border p-5 bg-gradient-to-br from-indigo-500/10 to-purple-500/10">
-        <h2 className="text-xl font-semibold">Bienvenido a Kiguca</h2>
+      <div className="rounded-xl border p-4 bg-muted/30">
         <p className="text-sm text-muted-foreground">
-          Iniciá sesión para ver tu panel personal.
+          Bienvenido a Kiguca. Iniciá sesión para ver tu panel personal.
         </p>
       </div>
     );
@@ -70,45 +60,49 @@ export default function WelcomeBanner() {
   const inicial = (user.name || user.email || "?").slice(0, 1).toUpperCase();
 
   return (
-    <div className="rounded-2xl border p-5 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center gap-4">
-      {/* Avatar */}
-      {user.picture ? (
-        <img
-          src={user.picture}
-          alt={nombre}
-          className="h-14 w-14 rounded-full object-cover border"
-        />
-      ) : (
-        <div className="h-14 w-14 rounded-full border flex items-center justify-center text-xl font-bold">
-          {inicial}
-        </div>
-      )}
+    <section className="rounded-xl border bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4">
+      <div className="flex items-center gap-3">
+        {/* Avatar reducido */}
+        {user.picture ? (
+          <img
+            src={user.picture}
+            alt={nombre}
+            className="h-10 w-10 rounded-full object-cover border"
+          />
+        ) : (
+          <div className="h-10 w-10 rounded-full border flex items-center justify-center text-base font-semibold">
+            {inicial}
+          </div>
+        )}
 
-      {/* Texto */}
-      <div className="flex-1">
-        <div className="text-sm text-muted-foreground">{saludoDelDia()},</div>
-        <div className="text-2xl font-bold leading-tight">{nombre}! 👋</div>
-        <p className="text-sm text-muted-foreground">
-          Estás en tu inicio de sesión. Gestioná ingresos, combustible y
+        {/* Texto más compacto */}
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground leading-none">
+            {saludoDelDia()},
+          </p>
+          <h2 className="text-lg font-semibold truncate">{nombre}! 👋</h2>
+          <p className="text-xs text-muted-foreground">
+            Gestioná ingresos, combustible y
           mantenimiento desde acá.
-        </p>
-      </div>
+          </p>
+        </div>
 
-      {/* Acciones rápidas (opcionales) */}
-      <div className="flex flex-col gap-2">
-        <a
-          href="/historial"
-          className="rounded-xl border px-3 py-2 text-sm hover:bg-accent"
-        >
-          Ver historial
-        </a>
-        <a
-          href="/ingresos/new"
-          className="rounded-xl border px-3 py-2 text-sm hover:bg-accent"
-        >
-          Nuevo ingreso
-        </a>
+        {/* Acciones: botones discretos */}
+        {/* <div className="ml-auto flex-shrink-0 flex gap-2">
+          <a
+            href="/historial"
+            className="rounded-lg border px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            Historial
+          </a>
+          <a
+            href="/ingresos/new"
+            className="rounded-lg border px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            Ingreso
+          </a>
+        </div> */}
       </div>
-    </div>
+    </section>
   );
 }
