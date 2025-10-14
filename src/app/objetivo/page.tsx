@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { getStorage } from "@/lib/storage";
 import type { Objetivo as ObjetivoBase } from "@/types";
+import AuthGate from "@/components/AuthGate";
 
 // Tomamos el tipo global y lo “estrechamos” a objetos con id:string para edición
 type Objetivo = ObjetivoBase & { id: string };
@@ -156,92 +157,96 @@ export default function ObjetivoPage() {
   };
 
   return (
-    <div className="p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label>Monto objetivo (ARS)</Label>
-                <Input type="number" min={1} {...register("monto")} />
-                {errors.monto && (
-                  <p className="text-sm text-red-500">{errors.monto.message}</p>
-                )}
+    <AuthGate>
+      <div className="p-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>{title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label>Monto objetivo (ARS)</Label>
+                  <Input type="number" min={1} {...register("monto")} />
+                  {errors.monto && (
+                    <p className="text-sm text-red-500">
+                      {errors.monto.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Período</Label>
+                  <Select
+                    value={periodo}
+                    onValueChange={(v: "semanal" | "mensual") =>
+                      setValue("periodo", v, { shouldValidate: true })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Elegí" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="mensual">Mensual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.periodo && (
+                    <p className="text-sm text-red-500">
+                      {errors.periodo.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Inicio</Label>
+                  <Input type="date" {...register("fecha_inicio")} />
+                  {errors.fecha_inicio && (
+                    <p className="text-sm text-red-500">
+                      {errors.fecha_inicio.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label>Período</Label>
-                <Select
-                  value={periodo}
-                  onValueChange={(v: "semanal" | "mensual") =>
-                    setValue("periodo", v, { shouldValidate: true })
-                  }
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Fin (auto)</Label>
+                  <Input type="date" {...register("fecha_fin")} readOnly />
+                  {errors.fecha_fin && (
+                    <p className="text-sm text-red-500">
+                      {errors.fecha_fin.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Notas</Label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Opcional..."
+                    {...register("notas")}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isSubmitting}>
+                  Guardar
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => router.push("/")}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Elegí" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="semanal">Semanal</SelectItem>
-                    <SelectItem value="mensual">Mensual</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.periodo && (
-                  <p className="text-sm text-red-500">
-                    {errors.periodo.message}
-                  </p>
-                )}
+                  Cancelar
+                </Button>
               </div>
-
-              <div className="space-y-1">
-                <Label>Inicio</Label>
-                <Input type="date" {...register("fecha_inicio")} />
-                {errors.fecha_inicio && (
-                  <p className="text-sm text-red-500">
-                    {errors.fecha_inicio.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label>Fin (auto)</Label>
-                <Input type="date" {...register("fecha_fin")} readOnly />
-                {errors.fecha_fin && (
-                  <p className="text-sm text-red-500">
-                    {errors.fecha_fin.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <Label>Notas</Label>
-                <Textarea
-                  rows={3}
-                  placeholder="Opcional..."
-                  {...register("notas")}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button type="submit" disabled={isSubmitting}>
-                Guardar
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => router.push("/")}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </AuthGate>
   );
 }
