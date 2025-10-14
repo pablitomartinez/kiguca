@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { getStorage } from "@/lib/storage";
 import { createClient } from "@supabase/supabase-js";
+import UserProfileCard from "@/components/UserProfileCard";
 
 export default function SupabaseSettingsPage() {
   const [email, setEmail] = useState<string | null>(null);
@@ -80,6 +81,7 @@ export default function SupabaseSettingsPage() {
     <div className="p-4 space-y-6">
       {/* Estado */}
       <Card>
+        <UserProfileCard />
         <CardHeader>
           <CardTitle>Estado</CardTitle>
         </CardHeader>
