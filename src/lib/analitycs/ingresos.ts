@@ -1,6 +1,11 @@
 // lib/analytics/ingresos.ts
 import { getStorage } from "@/lib/storage";
 import type { Ingreso as IngresoBase, Objetivo as ObjetivoBase } from "@/types";
+import {
+  getMensualAncladoRange,
+  isInRange,
+  type DateRange,
+} from "../periodos";
 
 export type Ingreso = IngresoBase & { id: string };
 export type Objetivo = ObjetivoBase & { id: string };
@@ -24,9 +29,12 @@ export async function getActiveObjetivo(): Promise<Objetivo | null> {
   return withId[0] ?? null;
 }
 
+// ingresos DENTRO del objetivo activo (si hay)
+//nuevo: rango dinámico basado en el día de fecha_inicio (anclaje)
 export async function getIngresosWithinObjetivo(): Promise<{
   objetivo: Objetivo | null;
   ingresos: Ingreso[];
+  range: DateRange | null;
 }> {
   const storage = getStorage();
   const obj = await getActiveObjetivo();
@@ -36,17 +44,20 @@ export async function getIngresosWithinObjetivo(): Promise<{
     (i): i is Ingreso => typeof i.id === "string"
   );
 
-  if (!obj) return { objetivo: null, ingresos: [] };
+  if (!obj) return { objetivo: null, ingresos: [], range: null };
 
-  const start = new Date(obj.fecha_inicio + "T00:00:00");
-  const end = new Date(obj.fecha_fin + "T23:59:59");
+  // ⚓ anclaje: tomamos el día de fecha_inicio (si falla, 10)
+  const anchorDay = (() => {
+    try { return new Date(obj.fecha_inicio + "T00:00:00").getDate(); }
+    catch { return 10; }
+  })();
 
-  const filtered = ingresos.filter((i) => {
-    const t = new Date(i.fecha + "T12:00:00").getTime();
-    return t >= start.getTime() && t <= end.getTime();
-  });
+  // 🔁 rango dinámico del ciclo vigente (ej: 10/10 → 09/11)
+  const range = getMensualAncladoRange(new Date(), anchorDay);
 
-  return { objetivo: obj, ingresos: filtered };
+  const filtered = ingresos.filter((i) => isInRange(i.fecha, range));
+
+  return { objetivo: obj, ingresos: filtered, range };
 }
 
 export function groupByDay(ingresos: Ingreso[]) {

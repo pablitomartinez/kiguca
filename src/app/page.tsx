@@ -13,6 +13,10 @@ import { onDataUpdated } from "@/lib/utils/events";
 import AuthGate from "@/components/AuthGate";
 import WelcomeBanner from "@/components/WelcomeBanner";
 
+
+// ultimo mes mejorado
+import { getMensualAncladoRange, isInRange } from "../lib/periodos";
+
 type CombustibleRow = import("@/types").Combustible & {
   // compat con datos viejos que quedaron en localStorage
   litros?: number; // antes: cantidad
@@ -54,9 +58,12 @@ export default function Page() {
     const s = getStorage();
 
     // límites del mes actual
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // const now = new Date();
+    // const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    // const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // ⬇️ ciclo anclado al 10 (cámbialo si el usuario elige otra cosa)
+    const { start, end } = getMensualAncladoRange(new Date(), 10);
 
     // INGRESOS
     const allIng = await s.ingresos.list();

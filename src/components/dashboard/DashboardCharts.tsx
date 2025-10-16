@@ -24,7 +24,8 @@ import {
   groupByWeek,
   sumByPlatform,
 } from "../../lib/analitycs/ingresos";
-import { formatCurrency } from "@/lib/utils/format";
+import { formatCurrency, toYMDLocal } from "@/lib/utils/format";
+import { onDataUpdated } from "@/lib/utils/events";
 
 const COLORS = ["var(--chart-1)", "var(--chart-2)"];
 
@@ -53,36 +54,73 @@ export default function DashboardCharts() {
   const [hasObjetivo, setHasObjetivo] = useState<boolean>(false);
   const [goal, setGoal] = useState<number>(0);
 
-  useEffect(() => {
-    const run = async () => {
-      const { objetivo, ingresos } = await getIngresosWithinObjetivo();
-      setHasObjetivo(Boolean(objetivo));
-      if (!objetivo) {
-        setLoading(false);
-        return;
-      }
-      setPeriod({ start: objetivo.fecha_inicio, end: objetivo.fecha_fin });
-      setGoal(Number((objetivo as any).monto ?? 0));
+  // useEffect(() => {
+  //   const run = async () => {
+  //     const { objetivo, ingresos, range } = await getIngresosWithinObjetivo();
+  //     setHasObjetivo(Boolean(objetivo));
+  //     if (!objetivo || !range) {
+  //       setLoading(false);
+  //       return;
+  //     }
+  //     setPeriod({
+  //       start: range.start.toISOString().slice(0, 10),
+  //       end: range.end.toISOString().slice(0, 10),
+  //     });
+  //     setGoal(Number((objetivo as any).monto ?? 0));
 
-      if (ingresos.length === 0) {
-        setDaily([]);
-        setWeekly([]);
-        setPie([]);
-        setLoading(false);
-        return;
-      }
+  //     if (ingresos.length === 0) {
+  //       setDaily([]);
+  //       setWeekly([]);
+  //       setPie([]);
+  //       setLoading(false);
+  //       return;
+  //     }
 
-      setDaily(groupByDay(ingresos));
-      setWeekly(groupByWeek(ingresos));
-      const p = sumByPlatform(ingresos);
-      setPie([
-        { name: "Uber", value: p.uber },
-        { name: "DiDi", value: p.didi },
-      ]);
+  //     setDaily(groupByDay(ingresos));
+  //     setWeekly(groupByWeek(ingresos));
+  //     const p = sumByPlatform(ingresos);
+  //     setPie([
+  //       { name: "Uber", value: p.uber },
+  //       { name: "DiDi", value: p.didi },
+  //     ]);
+  //     setLoading(false);
+  //   };
+  //   run();
+  // }, []);
+useEffect(() => {
+  const load = async () => {
+    const { objetivo, ingresos, range } = await getIngresosWithinObjetivo();
+    setHasObjetivo(Boolean(objetivo));
+    if (!objetivo || !range) {
       setLoading(false);
-    };
-    run();
-  }, []);
+      return;
+    }
+
+    setPeriod({ start: toYMDLocal(range.start), end: toYMDLocal(range.end) });
+    setGoal(Number((objetivo as any).monto ?? 0));
+
+    if (ingresos.length === 0) {
+      setDaily([]);
+      setWeekly([]);
+      setPie([]);
+      setLoading(false);
+      return;
+    }
+
+    setDaily(groupByDay(ingresos));
+    setWeekly(groupByWeek(ingresos));
+    const p = sumByPlatform(ingresos);
+    setPie([
+      { name: "Uber", value: p.uber },
+      { name: "DiDi", value: p.didi },
+    ]);
+    setLoading(false);
+  };
+
+  const off = onDataUpdated(load);
+  load();
+  return off;
+}, []);
 
   const totalNetoPeriodo = useMemo(
     () => daily.reduce((acc, d) => acc + d.neto, 0),
