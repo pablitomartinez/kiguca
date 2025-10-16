@@ -181,3 +181,19 @@ export function getWeekLabel(date: string | Date): string {
 
   return `Semana ${weekNumber}/${year}`;
 }
+
+
+
+// YYYY-MM-DD en **hora local** (sin saltar a UTC)
+export function toYMDLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Rango corto para UI, ej: "10 oct → 09 nov" (usa fecha local)
+export function formatRangeShort(start: Date, end: Date): string {
+  const fmt = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "short" });
+  return `${fmt.format(start)} → ${fmt.format(end)}`;
+}

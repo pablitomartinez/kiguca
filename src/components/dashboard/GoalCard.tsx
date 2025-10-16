@@ -6,6 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getIngresosWithinObjetivo } from "@/lib/analitycs/ingresos";
 import { formatCurrency } from "@/lib/utils/format";
+import { onDataUpdated } from "@/lib/utils/events";
+// importar helpers de formato
+import { toYMDLocal, formatRangeShort } from "@/lib/utils/format";
+
 
 function fmtRange(start?: string, end?: string) {
   if (!start || !end) return "—";
@@ -27,23 +31,31 @@ export default function GoalCard() {
   const [total, setTotal] = useState<number>(0);
   const [hasGoal, setHasGoal] = useState(false);
 
-  useEffect(() => {
-    const run = async () => {
-      const { objetivo, ingresos } = await getIngresosWithinObjetivo();
-      setHasGoal(Boolean(objetivo));
-      if (!objetivo) {
-        setLoading(false);
-        return;
-      }
-      setGoal(Number((objetivo as any).monto ?? 0));
-      setPeriod({ start: objetivo.fecha_inicio, end: objetivo.fecha_fin });
-      const sum = ingresos.reduce((acc, i) => acc + (i.neto ?? 0), 0);
-      setTotal(sum);
+useEffect(() => {
+  const load = async () => {
+    const { objetivo, ingresos, range } = await getIngresosWithinObjetivo();
+    setHasGoal(Boolean(objetivo));
+    if (!objetivo || !range) {
       setLoading(false);
-    };
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      return;
+    }
+    setGoal(Number((objetivo as any).monto ?? 0));
+    setPeriod({
+      start: toYMDLocal(range.start),
+      end: toYMDLocal(range.end),
+    });
+    const sum = ingresos.reduce((acc, i) => acc + (i.neto ?? 0), 0);
+    setTotal(sum);
+    setLoading(false);
+  };
+
+  const off = onDataUpdated(load);
+  load();
+  return off;
+}, []);
+
+
+
 
   if (loading) {
     return (
