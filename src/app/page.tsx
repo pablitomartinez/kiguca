@@ -12,6 +12,7 @@ import GoalCard from "@/components/dashboard/GoalCard";
 import { onDataUpdated } from "@/lib/utils/events";
 import AuthGate from "@/components/AuthGate";
 import WelcomeBanner from "@/components/WelcomeBanner";
+import WalletCard from "@/components/dashboard/WalletCard";
 
 
 // ultimo mes mejorado
@@ -148,7 +149,7 @@ export default function Page() {
         </div>
 
         {/* Accesos rápidos (mobile-first) */}
-        <div className="grid grid-cols-1 gap-3">
+        {/* <div className="grid grid-cols-1 gap-3">
           <Button asChild className="w-full py-3 rounded-xl">
             <Link
               href="/ingresos/new"
@@ -180,24 +181,67 @@ export default function Page() {
               Nuevo mantenimiento
             </Link>
           </Button>
-        </div>
+        </div> */}
+        <WalletCard netoMes={netoMes} gastoCombMes={gastoCombMes} />
+
+        {/* Objetivo activo (mejorado en el paso 2) */}
+        <GoalCard />
 
         {/* Métricas rápidas (placeholder por ahora) */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Última carga – ancho completo arriba */}
+        <div className="mt-4">
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-success" />
-                Neto del Mes
+                <Fuel className="h-4 w-4" />
+                Última carga
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">
-                {formatCurrency(netoMes)}
-              </div>
+            <CardContent className="text-sm">
+              {!ultimaCarga ? (
+                <p className="text-muted-foreground">
+                  Aún no registraste combustible.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                  <div>
+                    <div className="text-muted-foreground">Fecha</div>
+                    <div className="font-medium">{ultimaCarga.fecha}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Cantidad</div>
+                    <div className="font-medium">
+                      {ultimaCarga.cantidad} {ultimaCarga.unidad}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Monto</div>
+                    <div className="font-medium">
+                      {formatCurrency(ultimaCarga.monto)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">
+                      Precio / {ultimaCarga.unidad}
+                    </div>
+                    <div className="font-medium">
+                      {ultimaCarga.precioUnidad != null
+                        ? formatCurrency(ultimaCarga.precioUnidad)
+                        : "—"}
+                    </div>
+                  </div>
+                  <div className="md:col-span-4">
+                    <div className="text-muted-foreground">Odómetro</div>
+                    <div className="font-medium">{ultimaCarga.odometro} km</div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-
+        </div>
+        {/* ULIMA CARGA  */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* horas trabajadas  */}
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -212,27 +256,6 @@ export default function Page() {
               {/* <p className="text-xs text-muted-foreground mt-1">Este mes</p> */}
             </CardContent>
           </Card>
-        </div>
-
-        {/* ULIMA CARGA  */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="shadow-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Fuel className="h-4 w-4" />
-                Gasto combustible (mes)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(gastoCombMes)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Suma de cargas del mes
-              </p>
-            </CardContent>
-          </Card>
-
           <Card className="shadow-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -282,9 +305,6 @@ export default function Page() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Objetivo activo (mejorado en el paso 2) */}
-        <GoalCard />
 
         {/* Gráfico placeholder / charts reales si hay datos */}
         <Card className="shadow-card">
